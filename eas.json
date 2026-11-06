@@ -5,13 +5,16 @@
   },
   "build": {
     "preview": {
+      "distribution": "internal",
       "android": {
-        "buildType": "apk"
+        "buildType": "apk",
+        "credentialsSource": "remote"
       }
     },
-    "production": {}
-  },
-  "submit": {
-    "production": {}
+    "production": {
+      "android": {
+        "credentialsSource": "remote"
+      }
+    }
   }
 }
