@@ -8,6 +8,23 @@
     "splash": {
       "backgroundColor": "#0a0a0a"
     },
+    "plugins": [
+      [
+        "expo-contacts",
+        {
+          "contactsPermission": "Permitir que Konekta Premium acceda a tus contactos para encontrar amigos."
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "compileSdkVersion": 34,
+            "targetSdkVersion": 34
+          }
+        }
+      ]
+    ],
     "android": {
       "package": "com.konekta.premium",
       "permissions": [
