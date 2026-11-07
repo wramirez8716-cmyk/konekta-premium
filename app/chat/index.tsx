@@ -4,7 +4,7 @@ import { signOut } from 'firebase/auth';
 import { doc, onSnapshot, collection, addDoc, query, orderBy, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../../src/config/firebaseConfig';
 
-export default function ChatScreen() {
+export default function ChatScreen({ onNavigateContacts }: any) {
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState([]);
   const [userProfile, setUserProfile] = useState({ displayName: 'Usuario' });
@@ -13,20 +13,16 @@ export default function ChatScreen() {
   const userEmail = currentUser?.email || 'Usuario';
 
   useEffect(() => {
-    // 1. Cargar el perfil del usuario actual
     if (currentUser) {
       const userDocRef = doc(db, 'users', currentUser.uid);
       const unsubscribeProfile = onSnapshot(userDocRef, (doc) => {
-        if (doc.exists()) {
-          setUserProfile(doc.data());
-        }
+        if (doc.exists()) setUserProfile(doc.data());
       });
       return () => unsubscribeProfile();
     }
   }, [currentUser]);
 
   useEffect(() => {
-    // 2. Escuchar mensajes en tiempo real
     const q = query(collection(db, 'messages'), orderBy('createdAt', 'asc'));
     const unsubscribeMessages = onSnapshot(q, (snapshot) => {
       const msgs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -40,7 +36,7 @@ export default function ChatScreen() {
     try {
       await addDoc(collection(db, 'messages'), {
         text: message,
-        user: userProfile.displayName || userEmail, // Usar el nombre en lugar del correo
+        user: userProfile.displayName || userEmail,
         uid: currentUser?.uid,
         createdAt: serverTimestamp(),
       });
@@ -57,10 +53,15 @@ export default function ChatScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>💬 KONEKTA CHAT</Text>
-        <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn}>
-          <Text style={styles.logoutText}>Salir</Text>
-        </TouchableOpacity>
+        <Text style={styles.headerTitle}>💬 KONEKTA</Text>
+        <View style={styles.headerButtons}>
+          <TouchableOpacity onPress={onNavigateContacts} style={styles.contactsBtn}>
+            <Text style={styles.contactsText}>📱 Contactos</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn}>
+            <Text style={styles.logoutText}>Salir</Text>
+          </TouchableOpacity>
+        </View>
       </View>
       
       <FlatList
@@ -98,6 +99,9 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0a0a0a' },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 15, backgroundColor: '#1a1a1a', borderBottomWidth: 1, borderBottomColor: '#333' },
   headerTitle: { color: '#25D366', fontSize: 20, fontWeight: 'bold' },
+  headerButtons: { flexDirection: 'row', alignItems: 'center' },
+  contactsBtn: { backgroundColor: '#25D366', padding: 8, borderRadius: 8, marginRight: 8 },
+  contactsText: { color: '#0a0a0a', fontWeight: 'bold', fontSize: 12 },
   logoutBtn: { backgroundColor: '#ff4444', padding: 8, borderRadius: 8 },
   logoutText: { color: '#fff', fontWeight: 'bold' },
   messagesList: { padding: 10, flexGrow: 1 },

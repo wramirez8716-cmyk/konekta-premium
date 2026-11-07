@@ -9,7 +9,8 @@
       "backgroundColor": "#0a0a0a"
     },
     "android": {
-      "package": "com.konekta.premium"
+      "package": "com.konekta.premium",
+      "permissions": ["READ_CONTACTS"]
     },
     "extra": {
       "eas": {
