@@ -17,9 +17,7 @@ export default function App() {
     return unsubscribe;
   }, []);
 
-  if (loading) {
-    return null; // Pantalla en blanco mientras carga
-  }
+  if (loading) return null;
 
   return (
     <>
