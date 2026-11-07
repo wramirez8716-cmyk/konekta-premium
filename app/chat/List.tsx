@@ -12,7 +12,6 @@ export default function ChatListScreen({ onOpenChat, onBack }: any) {
   useEffect(() => {
     if (!currentUser) return;
 
-    // Escuchar todas las conversaciones donde participamos
     const q = query(
       collection(db, 'chats'),
       where('participants', 'array-contains', currentUser.uid)
@@ -22,9 +21,12 @@ export default function ChatListScreen({ onOpenChat, onBack }: any) {
       const convos = [];
       for (const docSnap of snapshot.docs) {
         const data = docSnap.data();
-        const otherUid = data.participants.find((uid: string) => uid !== currentUser.uid);
+        const participants = data.participants || [];
+        const otherUid = participants.find((uid: string) => uid !== currentUser.uid);
         
-        // Obtener el nombre del otro usuario
+        // NO mostrar conversaciones consigo mismo
+        if (!otherUid || otherUid === currentUser.uid) continue;
+        
         let otherName = 'Usuario';
         if (otherUid) {
           const userDoc = await getDoc(doc(db, 'users', otherUid));

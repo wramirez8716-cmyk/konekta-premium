@@ -24,7 +24,6 @@ export default function ContactsScreen({ onNavigateChat, onOpenPrivateChat, curr
         Alert.alert('Permiso denegado', 'Necesitamos acceso a tus contactos para encontrar amigos.');
       }
       
-      // Cargar usuarios registrados en la app
       const usersSnap = await getDocs(collection(db, 'users'));
       const usersList = usersSnap.docs.map(d => ({ uid: d.id, ...d.data() }));
       setUsers(usersList);
@@ -49,7 +48,6 @@ export default function ContactsScreen({ onNavigateChat, onOpenPrivateChat, curr
     if (!currentUser) return;
     const chatId = getChatId(currentUser.uid, user.uid);
     
-    // Crear el documento del chat si no existe
     await setDoc(doc(db, 'chats', chatId), {
       participants: [currentUser.uid, user.uid],
       createdAt: new Date(),
@@ -76,7 +74,7 @@ export default function ContactsScreen({ onNavigateChat, onOpenPrivateChat, curr
         <Text style={styles.headerTitle}>📱 Contactos</Text>
       </View>
 
-      {users.length > 0 && (
+      {users.filter(u => u.uid !== currentUser?.uid).length > 0 && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>🟢 Usuarios de Konekta</Text>
           {users.filter(u => u.uid !== currentUser?.uid).map(user => (
@@ -105,10 +103,11 @@ export default function ContactsScreen({ onNavigateChat, onOpenPrivateChat, curr
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => {
             const phone = item.phoneNumbers && item.phoneNumbers.length > 0 ? item.phoneNumbers[0].number : null;
+            const contactName = item.name || 'Sin nombre';
             return (
               <View style={styles.contactItem}>
                 <View style={styles.contactInfo}>
-                  <Text style={styles.contactName}>{item.name || 'Desconocido'}</Text>
+                  <Text style={styles.contactName}>{contactName}</Text>
                   {phone && <Text style={styles.contactPhone}>{phone}</Text>}
                 </View>
                 <TouchableOpacity style={styles.inviteBtn} onPress={() => inviteContact(phone)}>
