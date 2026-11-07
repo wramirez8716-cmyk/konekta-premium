@@ -1,12 +1,12 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { AuthProvider } from './src/context/AuthContext';
-import Navigation from './src/navigation';
+import { StatusBar } from 'expo-status-bar';
+import AuthScreen from './app/auth/index';
 
 export default function App() {
   return (
-    <AuthProvider>
-      <Navigation />
-    </AuthProvider>
+    <>
+      <AuthScreen />
+      <StatusBar style="light" />
+    </>
   );
 }
