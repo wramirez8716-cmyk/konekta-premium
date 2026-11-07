@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '../../src/config/firebaseConfig';
+import { doc, setDoc } from 'firebase/firestore';
+import { auth, db } from '../../src/config/firebaseConfig';
 
 export default function AuthScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [displayName, setDisplayName] = useState('');
   const [isLogin, setIsLogin] = useState(true);
 
   const handleAuth = async () => {
@@ -14,7 +16,17 @@ export default function AuthScreen() {
         await signInWithEmailAndPassword(auth, email, password);
         Alert.alert('¡Bienvenido!', 'Has iniciado sesión correctamente');
       } else {
-        await createUserWithEmailAndPassword(auth, email, password);
+        if (!displayName) {
+          Alert.alert('Error', 'Por favor ingresa un nombre');
+          return;
+        }
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        // Guardar el perfil del usuario en Firestore
+        await setDoc(doc(db, 'users', userCredential.user.uid), {
+          displayName: displayName,
+          email: email,
+          createdAt: new Date()
+        });
         Alert.alert('¡Registro exitoso!', 'Tu cuenta ha sido creada');
       }
     } catch (error: any) {
@@ -25,13 +37,47 @@ export default function AuthScreen() {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>🔐 KONEKTA PREMIUM</Text>
-      <TextInput style={styles.input} placeholder="Correo electrónico" placeholderTextColor="#8696a0" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" />
-      <TextInput style={styles.input} placeholder="Contraseña" placeholderTextColor="#8696a0" value={password} onChangeText={setPassword} secureTextEntry />
+      
+      {/* Campo Nombre (solo visible al registrarse) */}
+      {!isLogin && (
+        <TextInput
+          style={styles.input}
+          placeholder="Nombre de usuario"
+          placeholderTextColor="#8696a0"
+          value={displayName}
+          onChangeText={setDisplayName}
+        />
+      )}
+      
+      <TextInput
+        style={styles.input}
+        placeholder="Correo electrónico"
+        placeholderTextColor="#8696a0"
+        value={email}
+        onChangeText={setEmail}
+        autoCapitalize="none"
+        keyboardType="email-address"
+      />
+      
+      <TextInput
+        style={styles.input}
+        placeholder="Contraseña"
+        placeholderTextColor="#8696a0"
+        value={password}
+        onChangeText={setPassword}
+        secureTextEntry
+      />
+      
       <TouchableOpacity style={styles.button} onPress={handleAuth}>
-        <Text style={styles.buttonText}>{isLogin ? 'Iniciar Sesión' : 'Registrarse'}</Text>
+        <Text style={styles.buttonText}>
+          {isLogin ? 'Iniciar Sesión' : 'Registrarse'}
+        </Text>
       </TouchableOpacity>
+      
       <TouchableOpacity onPress={() => setIsLogin(!isLogin)}>
-        <Text style={styles.switchText}>{isLogin ? '¿No tienes cuenta? Regístrate' : '¿Ya tienes cuenta? Inicia sesión'}</Text>
+        <Text style={styles.switchText}>
+          {isLogin ? '¿No tienes cuenta? Regístrate' : '¿Ya tienes cuenta? Inicia sesión'}
+        </Text>
       </TouchableOpacity>
     </View>
   );
