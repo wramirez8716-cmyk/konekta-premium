@@ -1,46 +1,55 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert, Linking, ActivityIndicator } from 'react-native';
 import * as Contacts from 'expo-contacts';
-import { collection, query, where, getDocs, addDoc, doc, setDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, setDoc } from 'firebase/firestore';
 import { db } from '../../src/config/firebaseConfig';
 import { getChatId } from '../../src/utils/chatId';
 
 export default function ContactsScreen({ onNavigateChat, onOpenPrivateChat, currentUser }: any) {
-  const [contacts, setContacts] = useState([]);
-  const [users, setUsers] = useState([]);
+  const [contacts, setContacts] = useState<any[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
-      const { status } = await Contacts.requestPermissionsAsync();
-      if (status === 'granted') {
-        const { data } = await Contacts.getContactsAsync({
-          fields: [Contacts.Fields.PhoneNumbers, Contacts.Fields.Name],
-        });
-        if (data.length > 0) {
-          setContacts(data);
+      try {
+        const { status } = await Contacts.requestPermissionsAsync();
+        if (status === 'granted') {
+          const { data } = await Contacts.getContactsAsync({
+            fields: [Contacts.Fields.PhoneNumbers, Contacts.Fields.Name],
+          });
+          setContacts(data || []);
+        } else {
+          Alert.alert('Permiso denegado', 'Necesitamos acceso a tus contactos.');
         }
-      } else {
-        Alert.alert('Permiso denegado', 'Necesitamos acceso a tus contactos para encontrar amigos.');
+      } catch (e) {
+        console.log('Error contactos:', e);
       }
       
-      const usersSnap = await getDocs(collection(db, 'users'));
-      const usersList = usersSnap.docs.map(d => ({ uid: d.id, ...d.data() }));
-      setUsers(usersList);
+      try {
+        const usersSnap = await getDocs(collection(db, 'users'));
+        const usersList = usersSnap.docs
+          .map(d => ({ uid: d.id, ...d.data() }))
+          .filter(u => u.uid !== currentUser?.uid);
+        setUsers(usersList);
+      } catch (e) {
+        console.log('Error usuarios:', e);
+      }
       
       setLoading(false);
     })();
-  }, []);
+  }, [currentUser]);
 
   const inviteContact = (phoneNumber: string | undefined) => {
     const message = "¡Hola! Únete a Konekta Premium, mi nueva app de chat segura y cifrada.";
     if (phoneNumber) {
-      const url = `https://wa.me/${phoneNumber.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`;
+      const clean = phoneNumber.replace(/\D/g, '');
+      const url = `https://wa.me/${clean}?text=${encodeURIComponent(message)}`;
       Linking.openURL(url).catch(() => {
         Linking.openURL(`sms:${phoneNumber}?body=${encodeURIComponent(message)}`);
       });
     } else {
-      Alert.alert('Sin número', 'Este contacto no tiene número de teléfono.');
+      Alert.alert('Sin número', 'Este contacto no tiene número.');
     }
   };
 
@@ -74,10 +83,10 @@ export default function ContactsScreen({ onNavigateChat, onOpenPrivateChat, curr
         <Text style={styles.headerTitle}>📱 Contactos</Text>
       </View>
 
-      {users.filter(u => u.uid !== currentUser?.uid).length > 0 && (
+      {users.length > 0 && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>🟢 Usuarios de Konekta</Text>
-          {users.filter(u => u.uid !== currentUser?.uid).map(user => (
+          {users.map(user => (
             <TouchableOpacity
               key={user.uid}
               style={styles.userItem}
@@ -87,7 +96,7 @@ export default function ContactsScreen({ onNavigateChat, onOpenPrivateChat, curr
                 <Text style={styles.avatarText}>{(user.displayName || 'U').charAt(0).toUpperCase()}</Text>
               </View>
               <View style={styles.userInfo}>
-                <Text style={styles.userName}>{user.displayName}</Text>
+                <Text style={styles.userName}>{user.displayName || 'Usuario'}</Text>
                 <Text style={styles.userEmail}>{user.email}</Text>
               </View>
               <Text style={styles.chatBtn}>💬 Chatear</Text>

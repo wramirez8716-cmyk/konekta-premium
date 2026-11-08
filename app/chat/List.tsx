@@ -2,10 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { collection, query, where, onSnapshot, doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../../src/config/firebaseConfig';
-import { getChatId } from '../../src/utils/chatId';
 
 export default function ChatListScreen({ onOpenChat, onBack }: any) {
-  const [conversations, setConversations] = useState([]);
+  const [conversations, setConversations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const currentUser = auth.currentUser;
 
@@ -24,23 +23,21 @@ export default function ChatListScreen({ onOpenChat, onBack }: any) {
         const participants = data.participants || [];
         const otherUid = participants.find((uid: string) => uid !== currentUser.uid);
         
-        // NO mostrar conversaciones consigo mismo
         if (!otherUid || otherUid === currentUser.uid) continue;
         
         let otherName = 'Usuario';
-        if (otherUid) {
+        try {
           const userDoc = await getDoc(doc(db, 'users', otherUid));
           if (userDoc.exists()) {
             otherName = userDoc.data().displayName || 'Usuario';
           }
-        }
+        } catch (e) {}
 
         convos.push({
           id: docSnap.id,
           otherUid,
           otherName,
           lastMessage: data.lastMessage || '',
-          lastMessageTime: data.lastMessageTime,
         });
       }
       setConversations(convos);
@@ -71,7 +68,7 @@ export default function ChatListScreen({ onOpenChat, onBack }: any) {
       {conversations.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyText}>Aún no tienes conversaciones</Text>
-          <Text style={styles.emptySubtext}>Ve a Contactos e invita a alguien</Text>
+          <Text style={styles.emptySubtext}>Ve a Contactos e inicia un chat</Text>
         </View>
       ) : (
         <FlatList

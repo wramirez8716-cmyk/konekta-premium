@@ -1,65 +1,73 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, Alert } from 'react-native';
 import { signOut } from 'firebase/auth';
-import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
+import { collection, addDoc, query, orderBy, onSnapshot, doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../../src/config/firebaseConfig';
 import { getChatId } from '../../src/utils/chatId';
 import { encryptMessage, decryptMessage } from '../../src/utils/crypto';
 
 export default function PrivateChatScreen({ otherUid, otherName, onBack }: any) {
   const [message, setMessage] = useState('');
-  const [messages, setMessages] = useState([]);
+  const [messages, setMessages] = useState<any[]>([]);
+  const [sending, setSending] = useState(false);
   const currentUser = auth.currentUser;
-  
-  // Generar ID único para esta conversación
   const chatId = currentUser ? getChatId(currentUser.uid, otherUid) : null;
 
   useEffect(() => {
-    if (!chatId) return;
+    if (!chatId || !currentUser) return;
     
-    // Escuchar mensajes de esta conversación específica
+    setDoc(doc(db, 'chats', chatId), {
+      participants: [currentUser.uid, otherUid],
+      createdAt: serverTimestamp(),
+    }, { merge: true }).catch(err => console.log('Error creando chat:', err));
+
     const q = query(
       collection(db, 'chats', chatId, 'messages'),
       orderBy('createdAt', 'asc')
     );
     
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const msgs = snapshot.docs.map(docSnap => ({
+      const msgs = snapshot.docs.map((docSnap: any) => ({
         id: docSnap.id,
         ...docSnap.data(),
-        // Descifrar el mensaje al recibirlo
         decryptedText: decryptMessage(docSnap.data().encryptedText),
       }));
       setMessages(msgs);
+    }, (error: any) => {
+      console.error('Error en snapshot:', error);
+      Alert.alert('Error de conexión', error.message);
     });
     
-    return unsubscribe;
-  }, [chatId]);
+    return () => unsubscribe();
+  }, [chatId, currentUser, otherUid]);
 
   const sendMessage = async () => {
-    if (message.trim() === '' || !chatId) return;
+    if (!message.trim() || !chatId || !currentUser) {
+      Alert.alert('Error', 'Faltan datos para enviar');
+      return;
+    }
     
+    setSending(true);
     try {
-      // Cifrar el mensaje ANTES de guardarlo
       const encrypted = encryptMessage(message);
       
-      // Guardar en la subcolección de mensajes
       await addDoc(collection(db, 'chats', chatId, 'messages'), {
         encryptedText: encrypted,
-        senderUid: currentUser?.uid,
+        senderUid: currentUser.uid,
         createdAt: serverTimestamp(),
       });
       
-      // Actualizar el documento principal del chat con el último mensaje
-      await updateDoc(doc(db, 'chats', chatId), {
+      await setDoc(doc(db, 'chats', chatId), {
+        participants: [currentUser.uid, otherUid],
         lastMessage: message,
         lastMessageTime: serverTimestamp(),
-        participants: [currentUser?.uid, otherUid],
-      });
+      }, { merge: true });
       
       setMessage('');
-    } catch (error) {
-      Alert.alert('Error', 'No se pudo enviar el mensaje');
+    } catch (error: any) {
+      Alert.alert('Error al enviar', error.message || 'Error desconocido');
+    } finally {
+      setSending(false);
     }
   };
 
@@ -74,7 +82,7 @@ export default function PrivateChatScreen({ otherUid, otherName, onBack }: any) 
           <Text style={styles.backText}>←</Text>
         </TouchableOpacity>
         <View style={styles.headerInfo}>
-          <Text style={styles.headerTitle}>{otherName}</Text>
+          <Text style={styles.headerTitle}>{otherName || 'Usuario'}</Text>
           <Text style={styles.encryptedBadge}>🔒 Cifrado</Text>
         </View>
         <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn}>
@@ -84,8 +92,8 @@ export default function PrivateChatScreen({ otherUid, otherName, onBack }: any) 
       
       <FlatList
         data={messages}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
+        keyExtractor={(item: any) => item.id}
+        renderItem={({ item }: any) => (
           <View style={[
             styles.messageBubble,
             item.senderUid === currentUser?.uid ? styles.myMessage : styles.otherMessage
@@ -103,9 +111,14 @@ export default function PrivateChatScreen({ otherUid, otherName, onBack }: any) 
           placeholderTextColor="#8696a0"
           value={message}
           onChangeText={setMessage}
+          editable={!sending}
         />
-        <TouchableOpacity style={styles.sendBtn} onPress={sendMessage}>
-          <Text style={styles.sendText}>Enviar</Text>
+        <TouchableOpacity 
+          style={[styles.sendBtn, sending && styles.sendBtnDisabled]} 
+          onPress={sendMessage}
+          disabled={sending}
+        >
+          <Text style={styles.sendText}>{sending ? '...' : 'Enviar'}</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -130,5 +143,6 @@ const styles = StyleSheet.create({
   inputContainer: { flexDirection: 'row', padding: 10, backgroundColor: '#1a1a1a', borderTopWidth: 1, borderTopColor: '#333' },
   input: { flex: 1, backgroundColor: '#0a0a0a', color: '#fff', padding: 12, borderRadius: 20, marginRight: 10 },
   sendBtn: { backgroundColor: '#25D366', paddingHorizontal: 20, justifyContent: 'center', borderRadius: 20 },
+  sendBtnDisabled: { opacity: 0.5 },
   sendText: { color: '#0a0a0a', fontWeight: 'bold' },
 });
