@@ -1,15 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Image } from 'react-native';
 import { collection, query, where, onSnapshot, doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../../src/config/firebaseConfig';
 
 export default function ChatListScreen({ onOpenChat, onBack }: any) {
   const [conversations, setConversations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentUserData, setCurrentUserData] = useState<any>(null);
   const currentUser = auth.currentUser;
 
   useEffect(() => {
     if (!currentUser) return;
+
+    // Cargar datos del usuario actual
+    const loadUserData = async () => {
+      const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+      if (userDoc.exists()) {
+        setCurrentUserData(userDoc.data());
+      }
+    };
+    loadUserData();
 
     const q = query(
       collection(db, 'chats'),
@@ -26,10 +36,13 @@ export default function ChatListScreen({ onOpenChat, onBack }: any) {
         if (!otherUid || otherUid === currentUser.uid) continue;
         
         let otherName = 'Usuario';
+        let otherPhoto = null;
         try {
           const userDoc = await getDoc(doc(db, 'users', otherUid));
           if (userDoc.exists()) {
-            otherName = userDoc.data().displayName || 'Usuario';
+            const userData = userDoc.data();
+            otherName = userData.displayName || 'Usuario';
+            otherPhoto = userData.photoURL;
           }
         } catch (e) {}
 
@@ -37,6 +50,7 @@ export default function ChatListScreen({ onOpenChat, onBack }: any) {
           id: docSnap.id,
           otherUid,
           otherName,
+          otherPhoto,
           lastMessage: data.lastMessage || '',
         });
       }
@@ -63,6 +77,15 @@ export default function ChatListScreen({ onOpenChat, onBack }: any) {
           <Text style={styles.backText}>← Contactos</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>💬 Mis Chats</Text>
+        <TouchableOpacity onPress={() => onBack && onBack()} style={styles.profileBtn}>
+          {currentUserData?.photoURL ? (
+            <Image source={{ uri: currentUserData.photoURL }} style={styles.profilePhoto} />
+          ) : (
+            <View style={styles.profilePlaceholder}>
+              <Text style={styles.profileText}>{currentUser?.displayName?.charAt(0).toUpperCase() || 'U'}</Text>
+            </View>
+          )}
+        </TouchableOpacity>
       </View>
 
       {conversations.length === 0 ? (
@@ -79,9 +102,13 @@ export default function ChatListScreen({ onOpenChat, onBack }: any) {
               style={styles.chatItem}
               onPress={() => onOpenChat(item.otherUid, item.otherName)}
             >
-              <View style={styles.avatar}>
-                <Text style={styles.avatarText}>{item.otherName.charAt(0).toUpperCase()}</Text>
-              </View>
+              {item.otherPhoto ? (
+                <Image source={{ uri: item.otherPhoto }} style={styles.avatar} />
+              ) : (
+                <View style={styles.avatar}>
+                  <Text style={styles.avatarText}>{item.otherName.charAt(0).toUpperCase()}</Text>
+                </View>
+              )}
               <View style={styles.chatInfo}>
                 <Text style={styles.chatName}>{item.otherName}</Text>
                 <Text style={styles.lastMessage} numberOfLines={1}>
@@ -104,7 +131,11 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', padding: 15, backgroundColor: '#1a1a1a', borderBottomWidth: 1, borderBottomColor: '#333' },
   backBtn: { marginRight: 15 },
   backText: { color: '#25D366', fontSize: 16, fontWeight: 'bold' },
-  headerTitle: { color: '#25D366', fontSize: 20, fontWeight: 'bold' },
+  headerTitle: { color: '#25D366', fontSize: 20, fontWeight: 'bold', flex: 1 },
+  profileBtn: { marginRight: 5 },
+  profilePhoto: { width: 35, height: 35, borderRadius: 17.5, borderWidth: 2, borderColor: '#25D366' },
+  profilePlaceholder: { width: 35, height: 35, borderRadius: 17.5, backgroundColor: '#25D366', justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: '#25D366' },
+  profileText: { color: '#0a0a0a', fontSize: 16, fontWeight: 'bold' },
   emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
   emptyText: { color: '#fff', fontSize: 18, fontWeight: 'bold', marginBottom: 8 },
   emptySubtext: { color: '#8696a0', fontSize: 14, textAlign: 'center' },

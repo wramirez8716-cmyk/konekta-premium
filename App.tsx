@@ -7,6 +7,7 @@ import AuthScreen from './app/auth/index';
 import ChatListScreen from './app/chat/List';
 import PrivateChatScreen from './app/chat/Private';
 import ContactsScreen from './app/contacts/index';
+import ProfileScreen from './app/profile';
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -23,7 +24,6 @@ export default function App() {
         setCurrentScreen('chatList');
         setIsAuthenticated(false);
       } else {
-        // Si hay usuario, pedir biometría
         checkBiometrics();
       }
     });
@@ -44,7 +44,6 @@ export default function App() {
   if (loading) return null;
   if (!user) return <AuthScreen />;
 
-  // Pantalla de bloqueo por huella
   if (!isAuthenticated) {
     return (
       <View style={styles.lockScreen}>
@@ -58,7 +57,7 @@ export default function App() {
     );
   }
 
-  const openPrivateChat = (uid, name) => {
+  const openPrivateChat = (uid: string, name: string) => {
     setSelectedChat({ uid, name });
     setCurrentScreen('privateChat');
   };
@@ -84,6 +83,9 @@ export default function App() {
           onOpenPrivateChat={openPrivateChat}
           currentUser={user}
         />
+      )}
+      {currentScreen === 'profile' && (
+        <ProfileScreen onBack={() => setCurrentScreen('chatList')} />
       )}
       <StatusBar style="light" />
     </>

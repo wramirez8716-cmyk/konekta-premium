@@ -20,13 +20,22 @@
         {
           "faceIDPermission": "Permitir que Konekta Premium use tu huella digital para desbloquear la app."
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Permitir que Konekta Premium acceda a tus fotos para cambiar tu foto de perfil.",
+          "cameraPermission": "Permitir que Konekta Premium use la cámara para tomar una foto de perfil."
+        }
       ]
     ],
     "android": {
       "package": "com.konekta.premium",
       "permissions": [
         "android.permission.READ_CONTACTS",
-        "android.permission.USE_BIOMETRIC"
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.CAMERA"
       ]
     }
   }
