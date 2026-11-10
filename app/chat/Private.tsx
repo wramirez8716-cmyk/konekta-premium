@@ -1,148 +1,201 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, Alert } from 'react-native';
-import { signOut } from 'firebase/auth';
-import { collection, addDoc, query, orderBy, onSnapshot, doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
+import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../../src/config/firebaseConfig';
-import { getChatId } from '../../src/utils/chatId';
-import { encryptMessage, decryptMessage } from '../../src/utils/crypto';
+import { useTheme } from '../../src/context/ThemeContext';
 
 export default function PrivateChatScreen({ otherUid, otherName, onBack }: any) {
-  const [message, setMessage] = useState('');
+  const { theme } = useTheme();
   const [messages, setMessages] = useState<any[]>([]);
-  const [sending, setSending] = useState(false);
+  const [inputText, setInputText] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [otherPhoto, setOtherPhoto] = useState<string | null>(null);
+  const flatListRef = useRef<FlatList>(null);
   const currentUser = auth.currentUser;
-  const chatId = currentUser ? getChatId(currentUser.uid, otherUid) : null;
 
   useEffect(() => {
-    if (!chatId || !currentUser) return;
-    
-    setDoc(doc(db, 'chats', chatId), {
-      participants: [currentUser.uid, otherUid],
-      createdAt: serverTimestamp(),
-    }, { merge: true }).catch(err => console.log('Error creando chat:', err));
+    if (!currentUser || !otherUid) return;
 
+    // Cargar foto del otro usuario
+    const loadOtherUser = async () => {
+      const userDoc = await getDoc(doc(db, 'users', otherUid));
+      if (userDoc.exists()) {
+        setOtherPhoto(userDoc.data().photoURL || null);
+      }
+    };
+    loadOtherUser();
+
+    // Escuchar mensajes en tiempo real
+    const chatId = [currentUser.uid, otherUid].sort().join('_');
     const q = query(
-      collection(db, 'chats', chatId, 'messages'),
-      orderBy('createdAt', 'asc')
+      collection(db, `chats/${chatId}/messages`),
+      orderBy('timestamp', 'asc')
     );
-    
+
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const msgs = snapshot.docs.map((docSnap: any) => ({
-        id: docSnap.id,
-        ...docSnap.data(),
-        decryptedText: decryptMessage(docSnap.data().encryptedText),
+      const msgs = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
       }));
       setMessages(msgs);
-    }, (error: any) => {
-      console.error('Error en snapshot:', error);
-      Alert.alert('Error de conexión', error.message);
+      setLoading(false);
+      
+      // Auto-scroll al final
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: true });
+      }, 100);
     });
-    
-    return () => unsubscribe();
-  }, [chatId, currentUser, otherUid]);
+
+    return unsubscribe;
+  }, [currentUser, otherUid]);
 
   const sendMessage = async () => {
-    if (!message.trim() || !chatId || !currentUser) {
-      Alert.alert('Error', 'Faltan datos para enviar');
-      return;
-    }
+    if (!inputText.trim() || !currentUser) return;
+
+    const chatId = [currentUser.uid, otherUid].sort().join('_');
     
-    setSending(true);
     try {
-      const encrypted = encryptMessage(message);
-      
-      await addDoc(collection(db, 'chats', chatId, 'messages'), {
-        encryptedText: encrypted,
-        senderUid: currentUser.uid,
-        createdAt: serverTimestamp(),
+      await addDoc(collection(db, `chats/${chatId}/messages`), {
+        text: inputText.trim(),
+        senderId: currentUser.uid,
+        timestamp: serverTimestamp(),
+        status: 'sent',
       });
       
-      await setDoc(doc(db, 'chats', chatId), {
+      // Actualizar último mensaje en la lista de chats
+      await addDoc(collection(db, 'chats'), {
+        id: chatId,
         participants: [currentUser.uid, otherUid],
-        lastMessage: message,
+        lastMessage: inputText.trim(),
         lastMessageTime: serverTimestamp(),
-      }, { merge: true });
-      
-      setMessage('');
-    } catch (error: any) {
-      Alert.alert('Error al enviar', error.message || 'Error desconocido');
-    } finally {
-      setSending(false);
+      });
+
+      setInputText('');
+    } catch (error) {
+      console.error('Error enviando mensaje:', error);
     }
   };
 
-  const handleLogout = async () => {
-    try { await signOut(auth); } catch (error) { Alert.alert('Error', 'No se pudo cerrar sesión'); }
+  const formatTime = (timestamp: any) => {
+    if (!timestamp) return '';
+    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+    return date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
   };
 
-  return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={onBack} style={styles.backBtn}>
-          <Text style={styles.backText}>←</Text>
-        </TouchableOpacity>
-        <View style={styles.headerInfo}>
-          <Text style={styles.headerTitle}>{otherName || 'Usuario'}</Text>
-          <Text style={styles.encryptedBadge}>🔒 Cifrado</Text>
+  const renderMessage = ({ item }: any) => {
+    const isMe = item.senderId === currentUser?.uid;
+    
+    return (
+      <View style={[
+        styles.bubble,
+        isMe ? styles.bubbleMe : styles.bubbleOther,
+        { backgroundColor: isMe ? theme.primary : theme.surface }
+      ]}>
+        <Text style={[styles.messageText, { color: isMe ? '#fff' : theme.text }]}>
+          {item.text}
+        </Text>
+        <View style={styles.messageFooter}>
+          <Text style={[styles.timeText, { color: isMe ? 'rgba(255,255,255,0.8)' : theme.textSecondary }]}>
+            {formatTime(item.timestamp)}
+          </Text>
+          {isMe && (
+            <Text style={[styles.checkText, { color: item.status === 'sent' ? 'rgba(255,255,255,0.8)' : '#4fc3f7' }]}>
+              ✓✓
+            </Text>
+          )}
         </View>
-        <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn}>
-          <Text style={styles.logoutText}>Salir</Text>
-        </TouchableOpacity>
       </View>
-      
-      <FlatList
-        data={messages}
-        keyExtractor={(item: any) => item.id}
-        renderItem={({ item }: any) => (
-          <View style={[
-            styles.messageBubble,
-            item.senderUid === currentUser?.uid ? styles.myMessage : styles.otherMessage
-          ]}>
-            <Text style={styles.messageText}>{item.decryptedText}</Text>
+    );
+  };
+
+  if (loading) {
+    return (
+      <View style={[styles.container, { backgroundColor: theme.background }]}>
+        <ActivityIndicator size="large" color={theme.primary} />
+      </View>
+    );
+  }
+
+  return (
+    <KeyboardAvoidingView 
+      style={[styles.container, { backgroundColor: theme.background }]}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={90}
+    >
+      {/* Header */}
+      <View style={[styles.header, { backgroundColor: theme.surface, borderBottomColor: '#333' }]}>
+        <TouchableOpacity onPress={onBack} style={styles.backBtn}>
+          <Text style={[styles.backText, { color: theme.primary }]}>←</Text>
+        </TouchableOpacity>
+        {otherPhoto ? (
+          <View style={styles.headerAvatar}>
+            <Text style={{ fontSize: 20 }}>👤</Text> 
+            {/* Nota: Aquí iría <Image source={{uri: otherPhoto}} /> si importas Image */}
+          </View>
+        ) : (
+          <View style={[styles.headerAvatar, { backgroundColor: theme.primary }]}>
+            <Text style={[styles.avatarText, { color: theme.background }]}>
+              {otherName.charAt(0).toUpperCase()}
+            </Text>
           </View>
         )}
+        <View style={styles.headerInfo}>
+          <Text style={[styles.headerName, { color: theme.text }]}>{otherName}</Text>
+          <Text style={[styles.headerStatus, { color: theme.textSecondary }]}>En línea</Text>
+        </View>
+      </View>
+
+      {/* Lista de mensajes */}
+      <FlatList
+        ref={flatListRef}
+        data={messages}
+        keyExtractor={(item) => item.id}
+        renderItem={renderMessage}
         contentContainerStyle={styles.messagesList}
+        onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
       />
 
-      <View style={styles.inputContainer}>
+      {/* Input de texto */}
+      <View style={[styles.inputContainer, { backgroundColor: theme.surface, borderTopColor: '#333' }]}>
         <TextInput
-          style={styles.input}
-          placeholder="Escribe un mensaje cifrado..."
-          placeholderTextColor="#8696a0"
-          value={message}
-          onChangeText={setMessage}
-          editable={!sending}
+          style={[styles.input, { color: theme.text, backgroundColor: theme.background }]}
+          placeholder="Escribe un mensaje..."
+          placeholderTextColor={theme.textSecondary}
+          value={inputText}
+          onChangeText={setInputText}
+          multiline
         />
         <TouchableOpacity 
-          style={[styles.sendBtn, sending && styles.sendBtnDisabled]} 
+          style={[styles.sendBtn, { backgroundColor: theme.primary }]} 
           onPress={sendMessage}
-          disabled={sending}
         >
-          <Text style={styles.sendText}>{sending ? '...' : 'Enviar'}</Text>
+          <Text style={[styles.sendText, { color: theme.background }]}>➤</Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0a0a0a' },
-  header: { flexDirection: 'row', alignItems: 'center', padding: 15, backgroundColor: '#1a1a1a', borderBottomWidth: 1, borderBottomColor: '#333' },
-  backBtn: { marginRight: 10 },
-  backText: { color: '#25D366', fontSize: 24, fontWeight: 'bold' },
+  container: { flex: 1 },
+  header: { flexDirection: 'row', alignItems: 'center', padding: 12, borderBottomWidth: 1 },
+  backBtn: { padding: 8, marginRight: 8 },
+  backText: { fontSize: 24, fontWeight: 'bold' },
+  headerAvatar: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginRight: 10 },
+  avatarText: { fontSize: 18, fontWeight: 'bold' },
   headerInfo: { flex: 1 },
-  headerTitle: { color: '#25D366', fontSize: 18, fontWeight: 'bold' },
-  encryptedBadge: { color: '#8696a0', fontSize: 11, marginTop: 2 },
-  logoutBtn: { backgroundColor: '#ff4444', padding: 8, borderRadius: 8 },
-  logoutText: { color: '#fff', fontWeight: 'bold' },
-  messagesList: { padding: 10, flexGrow: 1 },
-  messageBubble: { padding: 12, borderRadius: 12, marginBottom: 8, maxWidth: '80%' },
-  myMessage: { backgroundColor: '#25D366', alignSelf: 'flex-end' },
-  otherMessage: { backgroundColor: '#1a1a1a', alignSelf: 'flex-start' },
-  messageText: { fontSize: 15, color: '#fff' },
-  inputContainer: { flexDirection: 'row', padding: 10, backgroundColor: '#1a1a1a', borderTopWidth: 1, borderTopColor: '#333' },
-  input: { flex: 1, backgroundColor: '#0a0a0a', color: '#fff', padding: 12, borderRadius: 20, marginRight: 10 },
-  sendBtn: { backgroundColor: '#25D366', paddingHorizontal: 20, justifyContent: 'center', borderRadius: 20 },
-  sendBtnDisabled: { opacity: 0.5 },
-  sendText: { color: '#0a0a0a', fontWeight: 'bold' },
+  headerName: { fontSize: 16, fontWeight: 'bold' },
+  headerStatus: { fontSize: 12 },
+  messagesList: { padding: 15, flexGrow: 1 },
+  bubble: { maxWidth: '80%', padding: 10, borderRadius: 15, marginBottom: 8 },
+  bubbleMe: { alignSelf: 'flex-end', borderBottomRightRadius: 4 },
+  bubbleOther: { alignSelf: 'flex-start', borderBottomLeftRadius: 4 },
+  messageText: { fontSize: 15, lineHeight: 20, marginBottom: 4 },
+  messageFooter: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center' },
+  timeText: { fontSize: 11, marginRight: 4 },
+  checkText: { fontSize: 14, fontWeight: 'bold' },
+  inputContainer: { flexDirection: 'row', alignItems: 'flex-end', padding: 10, borderTopWidth: 1 },
+  input: { flex: 1, maxHeight: 100, minHeight: 40, borderRadius: 20, paddingHorizontal: 15, paddingVertical: 10, fontSize: 15 },
+  sendBtn: { width: 45, height: 45, borderRadius: 22.5, justifyContent: 'center', alignItems: 'center', marginLeft: 8, marginBottom: 2 },
+  sendText: { fontSize: 20, fontWeight: 'bold' },
 });
