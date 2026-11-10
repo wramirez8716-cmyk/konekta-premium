@@ -5,6 +5,7 @@
     "owner": "werm871619",
     "version": "1.0.0",
     "orientation": "portrait",
+    "icon": "./assets/icon.png",
     "splash": {
       "backgroundColor": "#0a0a0a"
     },
@@ -36,7 +37,11 @@
         "android.permission.USE_BIOMETRIC",
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.CAMERA"
-      ]
+      ],
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0a0a0a"
+      }
     }
   }
 }

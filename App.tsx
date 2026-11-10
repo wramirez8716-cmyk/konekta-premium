@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { StatusBar, View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import { StatusBar, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from './src/config/firebaseConfig';
 import { authenticateWithBiometrics } from './src/utils/biometrics';
+import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import AuthScreen from './app/auth/index';
 import ChatListScreen from './app/chat/List';
 import PrivateChatScreen from './app/chat/Private';
 import ContactsScreen from './app/contacts/index';
 import ProfileScreen from './app/profile';
 
-export default function App() {
+function AppContent() {
+  const { theme } = useTheme();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -46,24 +48,24 @@ export default function App() {
 
   if (!isAuthenticated) {
     return (
-      <View style={styles.lockScreen}>
+      <View style={[styles.lockScreen, { backgroundColor: theme.background }]}>
         <Text style={styles.lockIcon}>🔒</Text>
-        <Text style={styles.lockTitle}>Konekta Premium</Text>
-        <Text style={styles.lockSubtitle}>Toca para desbloquear con tu huella o PIN</Text>
-        <TouchableOpacity style={styles.unlockBtn} onPress={handleRetryBiometrics}>
-          <Text style={styles.unlockText}>Desbloquear</Text>
+        <Text style={[styles.lockTitle, { color: theme.primary }]}>Konekta Premium</Text>
+        <Text style={[styles.lockSubtitle, { color: theme.textSecondary }]}>Toca para desbloquear con tu huella o PIN</Text>
+        <TouchableOpacity style={[styles.unlockBtn, { backgroundColor: theme.primary }]} onPress={handleRetryBiometrics}>
+          <Text style={[styles.unlockText, { color: theme.background }]}>Desbloquear</Text>
         </TouchableOpacity>
       </View>
     );
   }
 
-  const openPrivateChat = (uid: string, name: string) => {
+  const openPrivateChat = (uid, name) => {
     setSelectedChat({ uid, name });
     setCurrentScreen('privateChat');
   };
 
   return (
-    <>
+    <View style={{ flex: 1, backgroundColor: theme.background }}>
       {currentScreen === 'chatList' && (
         <ChatListScreen
           onOpenChat={openPrivateChat}
@@ -88,15 +90,23 @@ export default function App() {
         <ProfileScreen onBack={() => setCurrentScreen('chatList')} />
       )}
       <StatusBar style="light" />
-    </>
+    </View>
+  );
+}
+
+export default function App() {
+  return (
+    <ThemeProvider>
+      <AppContent />
+    </ThemeProvider>
   );
 }
 
 const styles = StyleSheet.create({
-  lockScreen: { flex: 1, backgroundColor: '#0a0a0a', justifyContent: 'center', alignItems: 'center', padding: 20 },
+  lockScreen: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
   lockIcon: { fontSize: 60, marginBottom: 20 },
-  lockTitle: { color: '#25D366', fontSize: 28, fontWeight: 'bold', marginBottom: 10 },
-  lockSubtitle: { color: '#8696a0', fontSize: 16, textAlign: 'center', marginBottom: 30 },
-  unlockBtn: { backgroundColor: '#25D366', paddingVertical: 15, paddingHorizontal: 40, borderRadius: 30 },
-  unlockText: { color: '#0a0a0a', fontSize: 18, fontWeight: 'bold' },
+  lockTitle: { fontSize: 28, fontWeight: 'bold', marginBottom: 10 },
+  lockSubtitle: { fontSize: 16, textAlign: 'center', marginBottom: 30 },
+  unlockBtn: { paddingVertical: 15, paddingHorizontal: 40, borderRadius: 30 },
+  unlockText: { fontSize: 18, fontWeight: 'bold' },
 });
