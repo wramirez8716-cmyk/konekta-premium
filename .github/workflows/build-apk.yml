@@ -21,9 +21,17 @@ jobs:
       - name: Install EAS CLI
         run: npm install -g eas-cli
 
+      - name: Configure Git
+        run: |
+          git config --global user.email "wilmer@example.com"
+          git config --global user.name "Wilmer"
+
+      - name: Initialize EAS Project
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: eas project:init --non-interactive
+
       - name: Build APK
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        run: |
-          cd /home/runner/work/konekta-premium/konekta-premium
-          eas build --platform android --profile preview --non-interactive
+        run: eas build --platform android --profile preview --non-interactive
