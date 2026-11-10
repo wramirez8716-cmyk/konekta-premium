@@ -2,7 +2,7 @@
   "expo": {
     "name": "Konekta Premium",
     "slug": "konekta-premium",
-    "owner": "werms-team",
+    "owner": "werm871619",
     "version": "1.0.0",
     "orientation": "portrait",
     "splash": {
@@ -21,11 +21,6 @@
       "permissions": [
         "android.permission.READ_CONTACTS"
       ]
-    },
-    "extra": {
-      "eas": {
-        "projectId": "6d33db60-b299-41a1-921d-43b0d5ad999b"
-      }
     }
   }
 }
