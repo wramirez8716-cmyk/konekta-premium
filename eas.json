@@ -7,14 +7,12 @@
     "preview": {
       "android": {
         "buildType": "apk"
-      },
-      "node": "18.x"
+      }
     },
     "production": {
       "android": {
         "buildType": "apk"
-      },
-      "node": "18.x"
+      }
     }
   },
   "submit": {
