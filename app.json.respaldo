@@ -1,0 +1,31 @@
+{
+  "expo": {
+    "name": "Konekta Premium",
+    "slug": "konekta-premium",
+    "owner": "werm871619s-team",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "splash": {
+      "backgroundColor": "#0a0a0a"
+    },
+    "plugins": [
+      ["expo-contacts", { "contactsPermission": "Permitir que Konekta Premium acceda a tus contactos." }],
+      ["expo-local-authentication", { "faceIDPermission": "Permitir que Konekta Premium use tu huella digital." }],
+      ["expo-image-picker", { "photosPermission": "Permitir acceso a fotos.", "cameraPermission": "Permitir uso de cámara." }]
+    ],
+    "android": {
+      "package": "com.konekta.premium",
+      "permissions": ["android.permission.READ_CONTACTS", "android.permission.USE_BIOMETRIC", "android.permission.READ_EXTERNAL_STORAGE", "android.permission.CAMERA"],
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0a0a0a"
+      }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "4aeade7d-3b7c-429f-9040-84f9dbdd5173"
+      }
+    }
+  }
+}
