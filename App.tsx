@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { StatusBar, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { StatusBar, View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { onAuthStateChanged } from 'firebase/auth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { auth } from './src/config/firebaseConfig';
 import { authenticateWithBiometrics } from './src/utils/biometrics';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
@@ -17,42 +18,69 @@ function AppContent() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentScreen, setCurrentScreen] = useState('chatList');
   const [selectedChat, setSelectedChat] = useState({ uid: null, name: '' });
+  const [biometricEnabled, setBiometricEnabled] = useState(false);
+  const [biometricError, setBiometricError] = useState('');
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
       setLoading(false);
-      if (!currentUser) {
-        setCurrentScreen('chatList');
-        setIsAuthenticated(false);
+      if (currentUser) {
+        // Verificar si el usuario tiene activado el bloqueo
+        const isLocked = await AsyncStorage.getItem('biometricEnabled');
+        setBiometricEnabled(isLocked === 'true');
+        
+        if (isLocked === 'true') {
+          checkBiometrics(); // Pedir huella si está activado
+        } else {
+          setIsAuthenticated(true); // Entrar directo si NO está activado
+        }
       } else {
-        checkBiometrics();
+        setIsAuthenticated(false);
+        setCurrentScreen('chatList');
       }
     });
     return unsubscribe;
   }, []);
 
   const checkBiometrics = async () => {
+    setBiometricError('');
     const result = await authenticateWithBiometrics();
     if (result.success) {
       setIsAuthenticated(true);
+    } else {
+      setBiometricError(result.message || 'No se pudo verificar la identidad');
     }
   };
 
-  const handleRetryBiometrics = () => {
-    checkBiometrics();
-  };
+  if (loading) {
+    return (
+      <View style={[styles.loadingContainer, { backgroundColor: theme.background }]}>
+        <ActivityIndicator size="large" color={theme.primary} />
+      </View>
+    );
+  }
 
-  if (loading) return null;
   if (!user) return <AuthScreen />;
 
-  if (!isAuthenticated) {
+  if (biometricEnabled && !isAuthenticated) {
     return (
       <View style={[styles.lockScreen, { backgroundColor: theme.background }]}>
-        <Text style={styles.lockIcon}>🔒</Text>
-        <Text style={[styles.lockTitle, { color: theme.primary }]}>Konekta Premium</Text>
-        <Text style={[styles.lockSubtitle, { color: theme.textSecondary }]}>Toca para desbloquear con tu huella o PIN</Text>
-        <TouchableOpacity style={[styles.unlockBtn, { backgroundColor: theme.primary }]} onPress={handleRetryBiometrics}>
+        <View style={[styles.lockCircle, { backgroundColor: theme.primary + '20' }]}>
+          <Text style={styles.lockIcon}>🔒</Text>
+        </View>
+        <Text style={[styles.lockTitle, { color: theme.text }]}>Konekta Premium</Text>
+        <Text style={[styles.lockSubtitle, { color: theme.textSecondary }]}>
+          Verifica tu identidad para continuar
+        </Text>
+        {biometricError ? (
+          <Text style={[styles.errorText, { color: '#ff5252' }]}>{biometricError}</Text>
+        ) : null}
+        <TouchableOpacity 
+          style={[styles.unlockBtn, { backgroundColor: theme.primary }]} 
+          onPress={checkBiometrics}
+          activeOpacity={0.8}
+        >
           <Text style={[styles.unlockText, { color: theme.background }]}>Desbloquear</Text>
         </TouchableOpacity>
       </View>
@@ -69,7 +97,8 @@ function AppContent() {
       {currentScreen === 'chatList' && (
         <ChatListScreen
           onOpenChat={openPrivateChat}
-          onBack={() => setCurrentScreen('contacts')}
+          onNavigateContacts={() => setCurrentScreen('contacts')}
+          onNavigateProfile={() => setCurrentScreen('profile')}
         />
       )}
       {currentScreen === 'privateChat' && (
@@ -81,15 +110,20 @@ function AppContent() {
       )}
       {currentScreen === 'contacts' && (
         <ContactsScreen
-          onNavigateChat={() => setCurrentScreen('chatList')}
+          onBack={() => setCurrentScreen('chatList')}
           onOpenPrivateChat={openPrivateChat}
           currentUser={user}
         />
       )}
       {currentScreen === 'profile' && (
-        <ProfileScreen onBack={() => setCurrentScreen('chatList')} />
+        <ProfileScreen 
+          onBack={() => setCurrentScreen('chatList')} 
+          currentUser={user}
+          biometricEnabled={biometricEnabled}
+          setBiometricEnabled={setBiometricEnabled}
+        />
       )}
-      <StatusBar style="light" />
+      <StatusBar barStyle="light-content" backgroundColor={theme.background} />
     </View>
   );
 }
@@ -103,10 +137,13 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  lockScreen: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
-  lockIcon: { fontSize: 60, marginBottom: 20 },
-  lockTitle: { fontSize: 28, fontWeight: 'bold', marginBottom: 10 },
-  lockSubtitle: { fontSize: 16, textAlign: 'center', marginBottom: 30 },
-  unlockBtn: { paddingVertical: 15, paddingHorizontal: 40, borderRadius: 30 },
-  unlockText: { fontSize: 18, fontWeight: 'bold' },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  lockScreen: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 30 },
+  lockCircle: { width: 100, height: 100, borderRadius: 50, justifyContent: 'center', alignItems: 'center', marginBottom: 30 },
+  lockIcon: { fontSize: 50 },
+  lockTitle: { fontSize: 32, fontWeight: '800', marginBottom: 10, letterSpacing: 1 },
+  lockSubtitle: { fontSize: 16, textAlign: 'center', marginBottom: 40, lineHeight: 22 },
+  errorText: { fontSize: 14, marginBottom: 20, textAlign: 'center' },
+  unlockBtn: { paddingVertical: 18, paddingHorizontal: 50, borderRadius: 30, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 5, elevation: 5 },
+  unlockText: { fontSize: 18, fontWeight: 'bold', letterSpacing: 0.5 },
 });
