@@ -26,10 +26,10 @@ jobs:
           git config --global user.email "wilmer@example.com"
           git config --global user.name "Wilmer"
 
-      - name: Initialize EAS Project
+      - name: Check Expo account
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        run: eas project:init --non-interactive
+        run: eas whoami
 
       - name: Build APK
         env:
