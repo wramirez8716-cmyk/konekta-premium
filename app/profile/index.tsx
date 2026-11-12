@@ -9,7 +9,7 @@ import { useTheme, THEMES } from '../../src/context/ThemeContext';
 import { uploadImageToCloudinary } from '../../src/utils/cloudinary';
 
 // ⚠️ IMPORTANTE: Reemplaza este link con el enlace público de tu APK (Drive, GitHub Releases, etc.)
-const APK_DOWNLOAD_LINK = 'https://github.com/wramirez8716-cmyk/konekta-premium/releases/download/V1.0.0/application-14bdc0fe-8e47-48ec-ba56-bbf0dc5c9ffe.apk'; 
+const APK_DOWNLOAD_LINK = 'https://github.com/wramirez8716-cmyk/konekta-premium/releases/download/v1.0.1/application-3711dac0-a0e9-4e12-88da-f1ab90a5cc1b.apk';; 
 
 export default function ProfileScreen({ onBack, currentUser, biometricEnabled, setBiometricEnabled }) {
   const { theme, themeColor, changeTheme } = useTheme();
