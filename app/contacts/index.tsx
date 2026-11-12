@@ -1,3 +1,4 @@
+import { INVITE_MESSAGE } from '../../src/config/appConfig';
 import React, { useState, useEffect } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert, Linking, ActivityIndicator } from 'react-native';
 import * as Contacts from 'expo-contacts';
@@ -41,7 +42,7 @@ export default function ContactsScreen({ onNavigateChat, onOpenPrivateChat, curr
   }, [currentUser]);
 
   const inviteContact = (phoneNumber: string | undefined) => {
-    const message = "¡Hola! Únete a Konekta Premium, mi nueva app de chat segura y cifrada.";
+    const message = INVITE_MESSAGE;
     if (phoneNumber) {
       const clean = phoneNumber.replace(/\D/g, '');
       const url = `https://wa.me/${clean}?text=${encodeURIComponent(message)}`;

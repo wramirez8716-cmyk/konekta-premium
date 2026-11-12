@@ -1,3 +1,4 @@
+import { APK_DOWNLOAD_LINK, INVITE_MESSAGE } from '../../src/config/appConfig';
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Switch, Alert, Image, ScrollView, Share } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
@@ -9,7 +10,6 @@ import { useTheme, THEMES } from '../../src/context/ThemeContext';
 import { uploadImageToCloudinary } from '../../src/utils/cloudinary';
 
 // ⚠️ IMPORTANTE: Reemplaza este link con el enlace público de tu APK (Drive, GitHub Releases, etc.)
-const APK_DOWNLOAD_LINK = 'https://github.com/wramirez8716-cmyk/konekta-premium/releases/download/v1.0.1/application-3711dac0-a0e9-4e12-88da-f1ab90a5cc1b.apk';; 
 
 export default function ProfileScreen({ onBack, currentUser, biometricEnabled, setBiometricEnabled }) {
   const { theme, themeColor, changeTheme } = useTheme();
@@ -54,7 +54,7 @@ export default function ProfileScreen({ onBack, currentUser, biometricEnabled, s
   const handleInvite = async () => {
     try {
       await Share.share({
-        message: `¡Hola! Te invito a usar Konekta Premium, mi app de chat segura y personalizable. Descárgala aquí: ${APK_DOWNLOAD_LINK}`,
+        message: INVITE_MESSAGE,
         title: 'Invitación a Konekta Premium'
       });
     } catch (error) {
