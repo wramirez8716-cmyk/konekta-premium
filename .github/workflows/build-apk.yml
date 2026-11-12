@@ -1,7 +1,10 @@
-name: Build APK
+name: Build and Release APK
 
 on:
   workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
 
 jobs:
   build:
@@ -15,24 +18,23 @@ jobs:
         with:
           node-version: '18'
 
+      - name: Setup Java JDK 17
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
       - name: Install dependencies
         run: npm install
 
-      - name: Install EAS CLI
-        run: npm install -g eas-cli
-
-      - name: Configure Git
-        run: |
-          git config --global user.email "wilmer@example.com"
-          git config --global user.name "Wilmer"
-
-      - name: Check Expo account
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        run: eas whoami
+      - name: Prebuild Android
+        run: npx expo prebuild --platform android --no-install
 
       - name: Build APK
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        # AQUÍ ESTÁ LA CLAVE: --clear-cache fuerza a usar el nuevo app.json
-        run: eas build --platform android --profile preview --non-interactive --clear-cache
+        run: cd android && chmod +x ./gradlew && ./gradlew assembleRelease
+
+      - name: Upload APK to Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Konekta-Premium-APK
+          path: android/app/build/outputs/apk/release/app-release.apk
