@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { StatusBar, View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { onAuthStateChanged } from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { auth } from './src/config/firebaseConfig';
+import { auth, db } from './src/config/firebaseConfig';
 import { authenticateWithBiometrics } from './src/utils/biometrics';
+import { registerForPushNotificationsAsync } from './src/utils/notifications';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import AuthScreen from './app/auth/index';
 import ChatListScreen from './app/chat/List';
@@ -26,14 +28,20 @@ function AppContent() {
       setUser(currentUser);
       setLoading(false);
       if (currentUser) {
-        // Verificar si el usuario tiene activado el bloqueo
+        // 1. Guardar/Actualizar el token de notificaciones en Firestore
+        const pushToken = await registerForPushNotificationsAsync();
+        if (pushToken) {
+          await setDoc(doc(db, 'users', currentUser.uid), { pushToken }, { merge: true });
+        }
+
+        // 2. Verificar bloqueo con huella
         const isLocked = await AsyncStorage.getItem('biometricEnabled');
         setBiometricEnabled(isLocked === 'true');
         
         if (isLocked === 'true') {
-          checkBiometrics(); // Pedir huella si está activado
+          checkBiometrics();
         } else {
-          setIsAuthenticated(true); // Entrar directo si NO está activado
+          setIsAuthenticated(true);
         }
       } else {
         setIsAuthenticated(false);
@@ -70,17 +78,9 @@ function AppContent() {
           <Text style={styles.lockIcon}>🔒</Text>
         </View>
         <Text style={[styles.lockTitle, { color: theme.text }]}>Konekta Premium</Text>
-        <Text style={[styles.lockSubtitle, { color: theme.textSecondary }]}>
-          Verifica tu identidad para continuar
-        </Text>
-        {biometricError ? (
-          <Text style={[styles.errorText, { color: '#ff5252' }]}>{biometricError}</Text>
-        ) : null}
-        <TouchableOpacity 
-          style={[styles.unlockBtn, { backgroundColor: theme.primary }]} 
-          onPress={checkBiometrics}
-          activeOpacity={0.8}
-        >
+        <Text style={[styles.lockSubtitle, { color: theme.textSecondary }]}>Verifica tu identidad para continuar</Text>
+        {biometricError ? <Text style={[styles.errorText, { color: '#ff5252' }]}>{biometricError}</Text> : null}
+        <TouchableOpacity style={[styles.unlockBtn, { backgroundColor: theme.primary }]} onPress={checkBiometrics} activeOpacity={0.8}>
           <Text style={[styles.unlockText, { color: theme.background }]}>Desbloquear</Text>
         </TouchableOpacity>
       </View>
@@ -94,35 +94,10 @@ function AppContent() {
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
-      {currentScreen === 'chatList' && (
-        <ChatListScreen
-          onOpenChat={openPrivateChat}
-          onNavigateContacts={() => setCurrentScreen('contacts')}
-          onNavigateProfile={() => setCurrentScreen('profile')}
-        />
-      )}
-      {currentScreen === 'privateChat' && (
-        <PrivateChatScreen
-          otherUid={selectedChat.uid}
-          otherName={selectedChat.name}
-          onBack={() => setCurrentScreen('chatList')}
-        />
-      )}
-      {currentScreen === 'contacts' && (
-        <ContactsScreen
-          onBack={() => setCurrentScreen('chatList')}
-          onOpenPrivateChat={openPrivateChat}
-          currentUser={user}
-        />
-      )}
-      {currentScreen === 'profile' && (
-        <ProfileScreen 
-          onBack={() => setCurrentScreen('chatList')} 
-          currentUser={user}
-          biometricEnabled={biometricEnabled}
-          setBiometricEnabled={setBiometricEnabled}
-        />
-      )}
+      {currentScreen === 'chatList' && <ChatListScreen onOpenChat={openPrivateChat} onNavigateContacts={() => setCurrentScreen('contacts')} onNavigateProfile={() => setCurrentScreen('profile')} />}
+      {currentScreen === 'privateChat' && <PrivateChatScreen otherUid={selectedChat.uid} otherName={selectedChat.name} onBack={() => setCurrentScreen('chatList')} />}
+      {currentScreen === 'contacts' && <ContactsScreen onBack={() => setCurrentScreen('chatList')} onOpenPrivateChat={openPrivateChat} currentUser={user} />}
+      {currentScreen === 'profile' && <ProfileScreen onBack={() => setCurrentScreen('chatList')} currentUser={user} biometricEnabled={biometricEnabled} setBiometricEnabled={setBiometricEnabled} />}
       <StatusBar barStyle="light-content" backgroundColor={theme.background} />
     </View>
   );
