@@ -33,15 +33,11 @@ jobs:
           rm -rf android
           npx expo prebuild --platform android --no-install
 
-      - name: Build APK with explicit SDK versions
+      - name: Build APK
         run: |
           cd android
           chmod +x ./gradlew
-          ./gradlew assembleRelease \
-            -Pandroid.compileSdkVersion=34 \
-            -Pandroid.targetSdkVersion=34 \
-            -Pandroid.buildToolsVersion="34.0.0" \
-            -Pandroid.minSdkVersion=23
+          ./gradlew assembleRelease
 
       - name: Upload APK to Artifacts
         uses: actions/upload-artifact@v4
