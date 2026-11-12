@@ -34,4 +34,5 @@ jobs:
       - name: Build APK
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        run: eas build --platform android --profile preview --non-interactive
+        # AQUÍ ESTÁ LA CLAVE: --clear-cache fuerza a usar el nuevo app.json
+        run: eas build --platform android --profile preview --non-interactive --clear-cache
