@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Switch, Alert, Image, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Switch, Alert, Image, ScrollView, Share } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { signOut } from 'firebase/auth';
@@ -7,6 +7,9 @@ import { doc, updateDoc } from 'firebase/firestore';
 import { auth, db } from '../../src/config/firebaseConfig';
 import { useTheme, THEMES } from '../../src/context/ThemeContext';
 import { uploadImageToCloudinary } from '../../src/utils/cloudinary';
+
+// ⚠️ IMPORTANTE: Reemplaza este link con el enlace público de tu APK (Drive, GitHub Releases, etc.)
+const APK_DOWNLOAD_LINK = 'https://github.com/wramirez8716-cmyk/konekta-premium/releases/tag/v1.0.0'; 
 
 export default function ProfileScreen({ onBack, currentUser, biometricEnabled, setBiometricEnabled }) {
   const { theme, themeColor, changeTheme } = useTheme();
@@ -48,6 +51,17 @@ export default function ProfileScreen({ onBack, currentUser, biometricEnabled, s
     }
   };
 
+  const handleInvite = async () => {
+    try {
+      await Share.share({
+        message: `¡Hola! Te invito a usar Konekta Premium, mi app de chat segura y personalizable. Descárgala aquí: ${APK_DOWNLOAD_LINK}`,
+        title: 'Invitación a Konekta Premium'
+      });
+    } catch (error) {
+      Alert.alert('Error', 'No se pudo compartir la invitación');
+    }
+  };
+
   const handleLogout = async () => {
     try {
       await signOut(auth);
@@ -72,7 +86,6 @@ export default function ProfileScreen({ onBack, currentUser, biometricEnabled, s
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: theme.background }]}>
-      {/* Header Profesional */}
       <View style={[styles.header, { backgroundColor: theme.surface, borderBottomColor: theme.border || '#333' }]}>
         <TouchableOpacity onPress={onBack} style={styles.backButton}>
           <Text style={{ fontSize: 24, color: theme.primary }}>←</Text>
@@ -82,7 +95,6 @@ export default function ProfileScreen({ onBack, currentUser, biometricEnabled, s
       </View>
 
       <View style={styles.content}>
-        {/* Foto de Perfil Editable */}
         <View style={[styles.card, { backgroundColor: theme.surface, alignItems: 'center', padding: 30 }]}>
           <TouchableOpacity onPress={pickAndUploadImage} disabled={uploading}>
             {photoURL ? (
@@ -103,7 +115,6 @@ export default function ProfileScreen({ onBack, currentUser, biometricEnabled, s
           </Text>
         </View>
 
-        {/* Selector de Color del Tema */}
         <View style={[styles.card, { backgroundColor: theme.surface, marginTop: 20 }]}>
           <Text style={[styles.sectionTitle, { color: theme.text }]}>Color del Tema</Text>
           <View style={styles.colorContainer}>
@@ -111,7 +122,6 @@ export default function ProfileScreen({ onBack, currentUser, biometricEnabled, s
           </View>
         </View>
 
-        {/* Configuración de Huella */}
         <View style={[styles.card, { backgroundColor: theme.surface, marginTop: 20 }]}>
           <View style={styles.settingRow}>
             <View style={styles.settingInfo}>
@@ -129,6 +139,15 @@ export default function ProfileScreen({ onBack, currentUser, biometricEnabled, s
             />
           </View>
         </View>
+
+        {/* Botón Invitar */}
+        <TouchableOpacity 
+          style={[styles.inviteBtn, { backgroundColor: theme.primary }]} 
+          onPress={handleInvite}
+          activeOpacity={0.8}
+        >
+          <Text style={[styles.inviteText, { color: theme.background }]}>📩 Invitar a un amigo</Text>
+        </TouchableOpacity>
 
         {/* Botón Cerrar Sesión */}
         <TouchableOpacity 
@@ -165,6 +184,8 @@ const styles = StyleSheet.create({
   settingInfo: { flex: 1, marginRight: 15 },
   settingTitle: { fontSize: 16, fontWeight: '600', marginBottom: 4 },
   settingDesc: { fontSize: 13 },
-  logoutBtn: { marginTop: 30, padding: 18, borderRadius: 12, alignItems: 'center' },
+  inviteBtn: { marginTop: 20, padding: 18, borderRadius: 12, alignItems: 'center', marginBottom: 10 },
+  inviteText: { fontSize: 16, fontWeight: 'bold' },
+  logoutBtn: { padding: 18, borderRadius: 12, alignItems: 'center' },
   logoutText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
 });
